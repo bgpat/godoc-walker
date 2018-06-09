@@ -31,8 +31,6 @@ var (
 
 	defaultGodocURL = "http://godoc.org"
 	godocURL        *url.URL
-
-	org = "wantedly"
 )
 
 func main() {
@@ -156,7 +154,7 @@ func getRepositories() ([]*github.Repository, error) {
 
 	var allRepos []*github.Repository
 	for {
-		repos, resp, err := githubClient.Repositories.ListByOrg(context.Background(), org, pagination)
+		repos, resp, err := githubClient.Repositories.ListByOrg(context.Background(), os.Getenv("GITHUB_ORGANIZATION"), pagination)
 		if err != nil {
 			return allRepos, err
 		}
