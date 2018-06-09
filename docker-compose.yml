@@ -1,0 +1,10 @@
+version: "3"
+services:
+  godoc-walker:
+    image: bgpat/godoc-walker:latest
+#   build: .
+    environment:
+      REDIS_URL: redis://redis:6379
+    env_file: .env
+  redis:
+    image: redis
