@@ -28,6 +28,7 @@ var (
 	defaultRedisURL = "redis://localhost:6379"
 
 	githubAccessToken string
+	githubUser        string
 
 	defaultGodocURL = "http://godoc.org"
 	godocURL        *url.URL
@@ -70,6 +71,12 @@ func main() {
 			log.Fatalf("failed to initialize GitHub client: %v", err)
 		}
 
+		userInfo, _, err := githubClient.Users.Get(context.Background(), "")
+		if err != nil {
+			log.Fatalf("failed to get user info: %v", err)
+		}
+		githubUser = userInfo.GetLogin()
+
 		repo, err = redisClient.RandomKey().Result()
 		if err != nil {
 			log.Println("repository queue is empty:", err.Error())
@@ -88,15 +95,13 @@ func main() {
 			}
 			return
 		}
+		log.Println("repository:", repo)
 
 		repoURL, err := url.Parse(repo)
 		if err != nil {
 			log.Fatalf("failed to parse '%s': %v", repo, err)
 		}
-
-		user, _, err := githubClient.Users.Get(context.Background(), "")
-		login := user.GetLogin()
-		repoURL.User = url.UserPassword(login, githubAccessToken)
+		repoURL.User = url.UserPassword(githubUser, githubAccessToken)
 
 		pkgs, err = getPackages(*repoURL)
 		if err != nil {
@@ -105,7 +110,7 @@ func main() {
 	}
 
 	for _, pkg := range pkgs {
-		log.Println(pkg)
+		log.Println("package:", pkg)
 		if err := sync(pkg); err != nil {
 			log.Fatalf("failed to sync %s: %v", pkg, err)
 		}
@@ -148,13 +153,33 @@ func initGitHub() error {
 }
 
 func getRepositories() ([]*github.Repository, error) {
-	pagination := &github.RepositoryListByOrgOptions{
-		ListOptions: github.ListOptions{PerPage: 100},
-	}
+	org := os.Getenv("GITHUB_ORGANIZATION")
+	pagination := github.ListOptions{PerPage: 100}
 
 	var allRepos []*github.Repository
 	for {
-		repos, resp, err := githubClient.Repositories.ListByOrg(context.Background(), os.Getenv("GITHUB_ORGANIZATION"), pagination)
+		var (
+			repos []*github.Repository
+			resp  *github.Response
+			err   error
+		)
+		if org == "" {
+			repos, resp, err = githubClient.Repositories.List(
+				context.Background(),
+				githubUser,
+				&github.RepositoryListOptions{
+					ListOptions: pagination,
+				},
+			)
+		} else {
+			repos, resp, err = githubClient.Repositories.ListByOrg(
+				context.Background(),
+				org,
+				&github.RepositoryListByOrgOptions{
+					ListOptions: pagination,
+				},
+			)
+		}
 		if err != nil {
 			return allRepos, err
 		}
