@@ -141,6 +141,9 @@ func initRedis() error {
 func initGitHub() error {
 	githubAccessToken = os.Getenv("GITHUB_ACCESS_TOKEN")
 	if githubAccessToken == "" {
+		githubAccessToken = os.Getenv("GITHUB_TOKEN")
+	}
+	if githubAccessToken == "" {
 		return errors.New("$GITHUB_ACCESS_TOKEN is required")
 	}
 
