@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/google/go-github/github"
@@ -30,8 +31,9 @@ var (
 	githubAccessToken string
 	githubUser        string
 
-	defaultGodocURL = "http://godoc.org"
-	godocURL        *url.URL
+	defaultGodocURL     = "http://godoc.org"
+	godocURL            *url.URL
+	godocRequestTimeout time.Duration
 )
 
 func main() {
@@ -43,6 +45,13 @@ func main() {
 	godocURL, err = url.Parse(godocURLStr)
 	if err != nil {
 		log.Fatalf("failed to parse $GODOC_URL: %v", err)
+	}
+
+	if godocReqTimeoutStr := os.Getenv("GODOC_REQUEST_TIMEOUT"); godocReqTimeoutStr != "" {
+		godocRequestTimeout, err = time.ParseDuration(godocReqTimeoutStr)
+		if err != nil {
+			log.Fatalf("failed to parse $GODOC_REQUEST_TIMEOUT: %v", err)
+		}
 	}
 
 	var (
@@ -246,6 +255,9 @@ func sync(pkg string) error {
 		return err
 	}
 	client := new(http.Client)
+	if godocRequestTimeout != 0 {
+		client.Timeout = godocRequestTimeout
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
