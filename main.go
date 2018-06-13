@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -256,7 +257,18 @@ func sync(pkg string) error {
 	}
 	client := new(http.Client)
 	if godocRequestTimeout != 0 {
-		client.Timeout = godocRequestTimeout
+		client.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   godocRequestTimeout,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       godocRequestTimeout,
+			TLSHandshakeTimeout:   godocRequestTimeout,
+			ExpectContinueTimeout: 1 * time.Second,
+		}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
