@@ -29,8 +29,9 @@ var (
 	redisURL        string
 	defaultRedisURL = "redis://localhost:6379"
 
-	githubAccessToken string
-	githubUser        string
+	githubAccessToken  string
+	githubUser         string
+	githubOrganization string
 
 	defaultGodocURL     = "http://godoc.org"
 	godocURL            *url.URL
@@ -47,12 +48,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to parse $GODOC_URL: %v", err)
 	}
+	log.Println("godocURL =", godocURL)
 
 	if godocReqTimeoutStr := os.Getenv("GODOC_REQUEST_TIMEOUT"); godocReqTimeoutStr != "" {
 		godocRequestTimeout, err = time.ParseDuration(godocReqTimeoutStr)
 		if err != nil {
 			log.Fatalf("failed to parse $GODOC_REQUEST_TIMEOUT: %v", err)
 		}
+		log.Println("godocRequestTimeout =", godocRequestTimeout)
 	}
 
 	var (
@@ -60,6 +63,7 @@ func main() {
 		repo string
 	)
 	if len(os.Args) > 1 {
+		fmt.Println("")
 		pkgs = make([]string, 0)
 		for _, repo := range os.Args[1:] {
 			repoURL, err := url.Parse(repo)
@@ -70,6 +74,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("failed to get pkg list: %v", err)
 			}
+			log.Println("repository:", repo)
 			pkgs = append(pkgs, p...)
 		}
 	} else {
@@ -81,11 +86,19 @@ func main() {
 			log.Fatalf("failed to initialize GitHub client: %v", err)
 		}
 
+		githubOrganization = os.Getenv("GITHUB_ORGANIZATION")
+
 		userInfo, _, err := githubClient.Users.Get(context.Background(), "")
 		if err != nil {
 			log.Fatalf("failed to get user info: %v", err)
 		}
 		githubUser = userInfo.GetLogin()
+
+		if githubOrganization == "" {
+			log.Println("githubUser =", githubUser)
+		} else {
+			log.Println("githubOrganization =", githubOrganization)
+		}
 
 		repo, err = redisClient.RandomKey().Result()
 		if err != nil {
@@ -105,6 +118,8 @@ func main() {
 			}
 			return
 		}
+
+		fmt.Println("")
 		log.Println("repository:", repo)
 
 		repoURL, err := url.Parse(repo)
@@ -138,6 +153,7 @@ func initRedis() error {
 	if redisURL == "" {
 		redisURL = defaultRedisURL
 	}
+	log.Println("redisURL =", redisURL)
 
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -166,7 +182,6 @@ func initGitHub() error {
 }
 
 func getRepositories() ([]*github.Repository, error) {
-	org := os.Getenv("GITHUB_ORGANIZATION")
 	pagination := github.ListOptions{PerPage: 100}
 
 	var allRepos []*github.Repository
@@ -176,7 +191,7 @@ func getRepositories() ([]*github.Repository, error) {
 			resp  *github.Response
 			err   error
 		)
-		if org == "" {
+		if githubOrganization == "" {
 			repos, resp, err = githubClient.Repositories.List(
 				context.Background(),
 				githubUser,
@@ -187,7 +202,7 @@ func getRepositories() ([]*github.Repository, error) {
 		} else {
 			repos, resp, err = githubClient.Repositories.ListByOrg(
 				context.Background(),
-				org,
+				githubOrganization,
 				&github.RepositoryListByOrgOptions{
 					ListOptions: pagination,
 				},
@@ -249,32 +264,35 @@ func getPackages(repoURL url.URL) ([]string, error) {
 }
 
 func sync(pkg string) error {
-	pkgURL := *godocURL
-	pkgURL.Path = path.Join(pkgURL.Path, pkg)
-	req, err := http.NewRequest("HEAD", pkgURL.String(), nil)
+	values := url.Values{}
+	values.Set("path", pkg)
+
+	refreshURL := *godocURL
+	refreshURL.Path = path.Join(refreshURL.Path, "-/refresh")
+	req, err := http.NewRequest("POST", refreshURL.String(), strings.NewReader(values.Encode()))
 	if err != nil {
 		return err
 	}
-	client := new(http.Client)
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
 	if godocRequestTimeout != 0 {
 		client.Transport = &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
 				Timeout:   godocRequestTimeout,
-				KeepAlive: 30 * time.Second,
 				DualStack: true,
 			}).DialContext,
-			MaxIdleConns:          100,
 			IdleConnTimeout:       godocRequestTimeout,
 			TLSHandshakeTimeout:   godocRequestTimeout,
-			ExpectContinueTimeout: 1 * time.Second,
+			ExpectContinueTimeout: godocRequestTimeout,
 		}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode >= 400 {
 		return fmt.Errorf("%v returns status code as %d", godocURL, resp.StatusCode)
 	}
 	return nil
