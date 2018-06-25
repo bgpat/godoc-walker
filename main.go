@@ -229,7 +229,7 @@ func gitClone(repo, dir string) error {
 
 func goList(pkg, gopath string) (string, error) {
 	var buf bytes.Buffer
-	cmd := exec.Command("go", "list", "-e", filepath.Join(pkg, "..."))
+	cmd := exec.Command("go", "list", filepath.Join(pkg, "..."))
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	cmd.Dir = gopath
 	cmd.Stdout = &buf
