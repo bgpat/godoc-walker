@@ -233,9 +233,8 @@ func goList(pkg, gopath string) (string, error) {
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	cmd.Dir = gopath
 	cmd.Stdout = &buf
-	if err := cmd.Run(); err != nil {
-		return "", err
-	}
+	cmd.Stderr = os.Stderr
+	cmd.Run()
 	return buf.String(), nil
 }
 
@@ -292,7 +291,9 @@ func sync(pkg string) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode == 404 {
+		fmt.Fprintf(os.Stderr, "%v returns status code as 404", godocURL)
+	} else if resp.StatusCode >= 400 {
 		return fmt.Errorf("%v returns status code as %d", godocURL, resp.StatusCode)
 	}
 	return nil
