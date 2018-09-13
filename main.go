@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,8 @@ var (
 	defaultGodocURL     = "http://godoc.org"
 	godocURL            *url.URL
 	godocRequestTimeout time.Duration
+
+	retryCount = 5
 )
 
 func main() {
@@ -56,6 +59,13 @@ func main() {
 			log.Fatalf("failed to parse $GODOC_REQUEST_TIMEOUT: %v", err)
 		}
 		log.Println("godocRequestTimeout =", godocRequestTimeout)
+	}
+
+	if retryCountStr := os.Getenv("RETRY_COUNT"); retryCountStr != "" {
+		retryCount, err = strconv.Atoi(retryCountStr)
+		if err != nil {
+			log.Fatalf("failed to parse $RETRY_COUNT: %v", err)
+		}
 	}
 
 	var (
@@ -136,7 +146,16 @@ func main() {
 
 	for _, pkg := range pkgs {
 		log.Println("package:", pkg)
-		if err := sync(pkg); err != nil {
+		var err error
+		for i := 0; i < retryCount; i++ {
+			err = sync(pkg)
+			if err != nil {
+				log.Printf("retry to sync %s: %v", pkg, err)
+				continue
+			}
+			break
+		}
+		if err != nil {
 			log.Fatalf("failed to sync %s: %v", pkg, err)
 		}
 	}
