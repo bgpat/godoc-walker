@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v7"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
@@ -121,7 +121,7 @@ func main() {
 
 			pairs := make([]string, 0, len(repos)*2)
 			for _, repo := range repos {
-				pairs = append(pairs, repo.GetCloneURL(), "")
+				pairs = append(pairs, repo.GetCloneURL(), "0")
 			}
 			if err := redisClient.MSet(pairs).Err(); err != nil {
 				log.Fatalf("failed to store repository list: %v", err)
@@ -132,14 +132,29 @@ func main() {
 		fmt.Println("")
 		log.Println("repository:", repo)
 
+		if count, err := redisClient.Get(repo).Int(); err != nil {
+			log.Println(err)
+		} else if count > retryCount {
+			log.Printf("skip %q: too many retried\n", repo)
+			if err := redisClient.Del(repo); err != nil {
+				log.Fatalf("failed to delete key '%s': %v", repo, err)
+			}
+		}
+
 		repoURL, err := url.Parse(repo)
 		if err != nil {
+			if err := redisClient.Incr(repo).Err(); err != nil {
+				log.Println(err)
+			}
 			log.Fatalf("failed to parse '%s': %v", repo, err)
 		}
 		repoURL.User = url.UserPassword(githubUser, githubAccessToken)
 
 		pkgs, err = getPackages(*repoURL)
 		if err != nil {
+			if err := redisClient.Incr(repo).Err(); err != nil {
+				log.Println(err)
+			}
 			log.Fatalf("failed to get pkg list: %v", err)
 		}
 	}
@@ -156,6 +171,9 @@ func main() {
 			break
 		}
 		if err != nil {
+			if err := redisClient.Incr(repo).Err(); err != nil {
+				log.Println(err)
+			}
 			log.Fatalf("failed to sync %s: %v", pkg, err)
 		}
 	}
