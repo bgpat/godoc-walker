@@ -9,7 +9,7 @@ require (
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
-	golang.org/x/net v0.0.0-20190923162816-aa69164e4478
+	golang.org/x/net v0.0.0-20210525063256-abc453219eb5
 	golang.org/x/oauth2 v0.0.0-20180603041954-1e0a3fa8ba9a
 	google.golang.org/appengine v1.0.0
 )
