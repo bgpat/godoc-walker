@@ -11,5 +11,5 @@ require (
 	github.com/onsi/gomega v1.9.0 // indirect
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5
 	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
-	google.golang.org/appengine v1.6.6
+	google.golang.org/appengine v1.6.7
 )
