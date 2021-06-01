@@ -11,7 +11,7 @@ ADD . ./
 RUN CGO_ENABLED=0 go build -ldflags="-s -w -extldflags '-static'" -o /godoc-walker
 
 
-FROM alpine:3.11
+FROM alpine:3.13
 RUN apk add -U --no-cache ca-certificates curl git
 COPY --from=0 /godoc-walker /godoc-walker
 ENTRYPOINT ["/godoc-walker"]
