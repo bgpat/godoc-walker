@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
