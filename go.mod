@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/go-github/v39 v39.2.0
-	golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92
+	golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c
 )
 
 require (
