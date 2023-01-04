@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v49/github"
 	"golang.org/x/oauth2"
 )
 
