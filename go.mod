@@ -3,7 +3,7 @@ module github.com/bgpat/godoc-walker
 go 1.18
 
 require (
-	github.com/go-redis/redis/v8 v8.11.5
+	github.com/go-redis/redis/v9 v9.0.5
 	github.com/google/go-github/v53 v53.2.0
 	golang.org/x/oauth2 v0.8.0
 )
